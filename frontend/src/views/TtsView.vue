@@ -12,7 +12,7 @@
         <div class="field">
           <label class="field-label">选择模型</label>
           <el-select v-model="form.model" class="full-width">
-            <el-option label="CosyVoice 语音合成" value="cosyvoice-v1" />
+            <el-option label="🤖 CosyVoice V3.5 Plus" value="cosyvoice-v3.5-plus" />
           </el-select>
         </div>
 
@@ -94,7 +94,7 @@ import { EditPen, Microphone, Headset, Download } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const form = ref({
-  model: 'cosyvoice-v1',
+  model: 'cosyvoice-v3.5-plus',
   text: '',
   voice: 'longxiaochun',
   speed: 1.0,

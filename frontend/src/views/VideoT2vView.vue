@@ -12,8 +12,8 @@
         <div class="field">
           <label class="field-label">选择模型</label>
           <el-select v-model="form.model" class="full-width">
-            <el-option label="通义万相 2.1 视频基础版" value="wanx2.1-t2v-turbo" />
-            <el-option label="通义万相 2.1 视频增强版" value="wanx2.1-t2v-plus" />
+            <el-option label="万相 2.7 (最新，多镜头叙事)" value="wan2.7-t2v" />
+            <el-option label="万相 2.2 Plus (稳定)" value="wan2.2-t2v-plus" />
           </el-select>
         </div>
 
@@ -84,7 +84,7 @@ import { EditPen, VideoCamera, VideoCameraFilled, Download, RefreshRight } from 
 import { ElMessage } from 'element-plus'
 
 const form = ref({
-  model: 'wanx2.1-t2v-turbo',
+  model: 'wan2.7-t2v',
   prompt: '',
   duration: '5',
   resolution: '720P',
