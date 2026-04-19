@@ -1,0 +1,21 @@
+services:
+  backend:
+    build: ./backend
+    container_name: bailian-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - BAILIAN_API_KEY=${BAILIAN_API_KEY}
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data/bailian/storage:/data/bailian/storage
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: bailian-frontend
+    ports:
+      - "3800:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
