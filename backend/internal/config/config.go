@@ -1,6 +1,9 @@
 package config
 
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
 type Config struct {
 	ApiKey      string
@@ -16,6 +19,13 @@ func Load() Config {
 		StoragePath: getEnv("STORAGE_PATH", "/data/storage"),
 		BaseURL:     "https://dashscope.aliyuncs.com",
 	}
+}
+
+func (c Config) Validate() error {
+	if c.ApiKey == "" {
+		return fmt.Errorf("BAILIAN_API_KEY is required but not set")
+	}
+	return nil
 }
 
 func getEnv(k, def string) string {

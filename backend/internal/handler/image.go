@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"bailian-workbench/internal/catalog"
 	"bailian-workbench/internal/client"
 	"bailian-workbench/internal/model"
 	"bailian-workbench/internal/repository"
@@ -15,12 +16,20 @@ func HandleImageGen(ds *client.DashScope) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req model.ImageGenRequest
 		if err := readJSON(r, &req); err != nil {
-			writeError(w, 400, "Invalid request")
+			writeError(w, 400, "Invalid request: "+err.Error())
 			return
 		}
-		if req.Model == "" {
-			req.Model = "qwen-image-2.0-pro"
+
+		m := ModelCatalog.Find(req.Model)
+		if m == nil {
+			writeError(w, 400, "Unknown model: "+req.Model)
+			return
 		}
+		if m.Category != catalog.CatImage {
+			writeError(w, 400, "Model "+req.Model+" is not an image model")
+			return
+		}
+
 		if req.Size == "" {
 			req.Size = "1024*1024"
 		}
@@ -28,6 +37,7 @@ func HandleImageGen(ds *client.DashScope) http.HandlerFunc {
 			req.N = 1
 		}
 
+		isQwen := strings.HasPrefix(req.Model, "qwen-image")
 		params := map[string]any{
 			"size": req.Size,
 			"n":    req.N,
@@ -42,11 +52,8 @@ func HandleImageGen(ds *client.DashScope) http.HandlerFunc {
 			params["prompt_extend"] = *req.PromptExtend
 		}
 
-		isQwen := strings.HasPrefix(req.Model, "qwen-image")
 		var body map[string]any
-		var endpoint string
 		if isQwen {
-			endpoint = "/api/v1/services/aigc/multimodal-generation/generation"
 			content := []map[string]any{{"text": req.Prompt}}
 			body = map[string]any{
 				"model": req.Model,
@@ -56,7 +63,6 @@ func HandleImageGen(ds *client.DashScope) http.HandlerFunc {
 				"parameters": params,
 			}
 		} else {
-			endpoint = "/api/v1/services/aigc/text2image/image-synthesis"
 			input := map[string]any{"prompt": req.Prompt}
 			if req.NegativePrompt != "" {
 				input["negative_prompt"] = req.NegativePrompt
@@ -76,10 +82,10 @@ func HandleImageGen(ds *client.DashScope) http.HandlerFunc {
 
 		var resp *http.Response
 		var apiErr error
-		if isQwen {
-			resp, apiErr = ds.Do(endpoint, body)
+		if m.Async {
+			resp, apiErr = ds.DoAsync(m.Endpoint, body)
 		} else {
-			resp, apiErr = ds.DoAsync(endpoint, body)
+			resp, apiErr = ds.Do(m.Endpoint, body)
 		}
 		if apiErr != nil {
 			writeError(w, 500, "Image API error: "+apiErr.Error())

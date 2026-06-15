@@ -11,11 +11,6 @@ type OCRRequest struct {
 	ImageURL    string `json:"image_url"`
 }
 
-type CodeRequest struct {
-	Language string `json:"language"`
-	Code     string `json:"code"`
-}
-
 type DocumentRequest struct {
 	Task     string `json:"task"`
 	Text     string `json:"text"`

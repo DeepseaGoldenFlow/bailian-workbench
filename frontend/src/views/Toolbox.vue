@@ -24,13 +24,6 @@
         <el-button type="primary" @click="doOCR" :loading="ocr.loading" style="margin-top:8px">开始识别</el-button>
         <div v-if="ocr.result"><el-input v-model="ocr.result" type="textarea" :rows="6" readonly /></div>
       </el-tab-pane>
-      <el-tab-pane label="代码执行" name="code">
-        <h3>在线代码执行</h3>
-        <el-select v-model="code.lang" style="margin-bottom:8px"><el-option label="Python" value="python" /><el-option label="Bash" value="bash" /></el-select>
-        <el-input v-model="code.code" type="textarea" :rows="8" placeholder="输入代码..." />
-        <el-button type="primary" @click="doCode" :loading="code.loading" style="margin-top:8px">运行</el-button>
-        <div v-if="code.result"><pre>{{ code.result }}</pre></div>
-      </el-tab-pane>
       <el-tab-pane label="文档处理" name="doc">
         <h3>文档智能处理</h3>
         <el-select v-model="doc.task" style="margin-bottom:8px"><el-option label="摘要" value="summarize" /><el-option label="问答" value="qa" /><el-option label="提取" value="extract" /><el-option label="翻译" value="translate" /></el-select>
@@ -45,7 +38,7 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { translate, ocr, runCode, document_ } from '../api'
+import { translate, ocr, document_ } from '../api'
 
 const activeTab = ref('translate')
 
@@ -87,14 +80,6 @@ async function doOCR() {
     ocrData.result = data.text
   } catch (e) { ocrData.result = String(e.response?.data || e.message) }
   ocrData.loading = false
-}
-
-const code = reactive({ lang: 'python', code: '', loading: false, result: '' })
-async function doCode() {
-  if (!code.code.trim()) return
-  code.loading = true; code.result = ''
-  try { const { data } = await runCode({ language: code.lang, code: code.code }); code.result = data.output } catch (e) { code.result = String(e.response?.data || e.message) }
-  code.loading = false
 }
 
 const doc = reactive({ task: 'summarize', text: '', question: '', loading: false, result: '' })

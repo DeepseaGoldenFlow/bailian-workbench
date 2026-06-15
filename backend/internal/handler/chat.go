@@ -77,10 +77,18 @@ func handleStreamResponse(w http.ResponseWriter, resp *http.Response, model stri
 
 		if strings.HasPrefix(line, "data: ") && line != "data: [DONE]" {
 			data := strings.TrimPrefix(line, "data: ")
-			var delta model.DeltaResponse
+			var delta map[string]any
 			if json.Unmarshal([]byte(data), &delta) == nil {
-				for _, c := range delta.Choices {
-					fullContent.WriteString(c.Delta.Content)
+				if choices, ok := delta["choices"].([]any); ok {
+					for _, c := range choices {
+						if ch, ok := c.(map[string]any); ok {
+							if d, ok := ch["delta"].(map[string]any); ok {
+								if content, ok := d["content"].(string); ok {
+									fullContent.WriteString(content)
+								}
+							}
+						}
+					}
 				}
 			}
 		}

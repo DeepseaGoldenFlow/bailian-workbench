@@ -1,12 +1,9 @@
 package handler
 
 import (
-	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
-	"os/exec"
-	"strings"
 
 	"bailian-workbench/internal/client"
 	"bailian-workbench/internal/model"
@@ -26,7 +23,6 @@ func HandleTranslate(ds *client.DashScope) http.HandlerFunc {
 		if req.TargetLang == "" {
 			req.TargetLang = "en"
 		}
-
 		body := map[string]any{
 			"model": "qwen-mt-plus",
 			"input": map[string]any{
@@ -39,18 +35,15 @@ func HandleTranslate(ds *client.DashScope) http.HandlerFunc {
 				},
 			},
 		}
-
 		resp, err := ds.Do("/api/v1/services/aigc/text-generation/generation", body)
 		if err != nil {
 			writeError(w, 500, "Translation error: "+err.Error())
 			return
 		}
 		defer resp.Body.Close()
-
 		var result map[string]any
 		respBody, _ := io.ReadAll(resp.Body)
 		json.Unmarshal(respBody, &result)
-
 		translated := extractChoiceContent(result)
 		WriteJSON(w, 200, map[string]any{"success": true, "translated_text": translated})
 		translatedJSON, _ := json.Marshal(translated)
@@ -65,7 +58,6 @@ func HandleOCR(ds *client.DashScope) http.HandlerFunc {
 			writeError(w, 400, "Invalid request")
 			return
 		}
-
 		imageData := req.ImageBase64
 		if imageData == "" && req.ImageURL != "" {
 			imgResp, err := http.Get(req.ImageURL)
@@ -81,7 +73,6 @@ func HandleOCR(ds *client.DashScope) http.HandlerFunc {
 			writeError(w, 400, "No image provided (image_base64 or image_url required)")
 			return
 		}
-
 		body := map[string]any{
 			"model": "qwen-vl-ocr-2025-11-20",
 			"messages": []map[string]any{{
@@ -92,57 +83,19 @@ func HandleOCR(ds *client.DashScope) http.HandlerFunc {
 				},
 			}},
 		}
-
 		resp, err := ds.Do("/compatible-mode/v1/chat/completions", body)
 		if err != nil {
 			writeError(w, 500, "OCR error: "+err.Error())
 			return
 		}
 		defer resp.Body.Close()
-
 		var result map[string]any
 		respBody, _ := io.ReadAll(resp.Body)
 		json.Unmarshal(respBody, &result)
-
 		text := extractChoiceContent(result)
 		WriteJSON(w, 200, map[string]any{"success": true, "text": text})
 		ocrJSON, _ := json.Marshal(text)
 		repository.SaveGeneration("ocr", "qwen-vl-ocr", "OCR request", string(ocrJSON), "", "completed")
-	}
-}
-
-func HandleCode(_ *client.DashScope) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req model.CodeRequest
-		if err := readJSON(r, &req); err != nil {
-			writeError(w, 400, "Invalid request")
-			return
-		}
-		if req.Language == "" {
-			req.Language = "python"
-		}
-
-		var output string
-		var err error
-		success := true
-
-		switch strings.ToLower(req.Language) {
-		case "python":
-			output, err = runCmd("python3", "-c", req.Code)
-		case "bash", "sh":
-			output, err = runCmd("sh", "-c", req.Code)
-		default:
-			output = "Unsupported language. Use python or bash."
-		}
-
-		if err != nil {
-			output = err.Error() + "\n" + output
-			success = false
-		}
-
-		WriteJSON(w, 200, map[string]any{"success": success, "output": output, "language": req.Language})
-		codeJSON, _ := json.Marshal(output)
-		repository.SaveGeneration("code", req.Language, req.Code, string(codeJSON), "", "completed")
 	}
 }
 
@@ -156,7 +109,6 @@ func HandleDocument(ds *client.DashScope) http.HandlerFunc {
 		if req.Task == "" {
 			req.Task = "summarize"
 		}
-
 		var prompt string
 		switch req.Task {
 		case "summarize":
@@ -170,11 +122,9 @@ func HandleDocument(ds *client.DashScope) http.HandlerFunc {
 		default:
 			prompt = "Analyze:\n" + req.Text
 		}
-
 		if len(prompt) > 12000 {
 			prompt = prompt[:12000]
 		}
-
 		body := map[string]any{
 			"model": "qwen-plus",
 			"messages": []map[string]string{
@@ -182,18 +132,15 @@ func HandleDocument(ds *client.DashScope) http.HandlerFunc {
 			},
 			"max_tokens": 4000,
 		}
-
 		resp, err := ds.Do("/compatible-mode/v1/chat/completions", body)
 		if err != nil {
 			writeError(w, 500, "Document analysis error: "+err.Error())
 			return
 		}
 		defer resp.Body.Close()
-
 		var result map[string]any
 		respBody, _ := io.ReadAll(resp.Body)
 		json.Unmarshal(respBody, &result)
-
 		content := extractChoiceContent(result)
 		WriteJSON(w, 200, map[string]any{"success": true, "result": content, "task": req.Task})
 		docJSON, _ := json.Marshal(content)
@@ -212,17 +159,4 @@ func extractChoiceContent(result map[string]any) string {
 		}
 	}
 	return ""
-}
-
-func runCmd(name string, args ...string) (string, error) {
-	ctx := exec.Command(name, args...)
-	var stdout, stderr bytes.Buffer
-	ctx.Stdout = &stdout
-	ctx.Stderr = &stderr
-	err := ctx.Run()
-	result := stdout.String()
-	if stderr.Len() > 0 {
-		result += stderr.String()
-	}
-	return result, err
 }
