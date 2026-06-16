@@ -1,101 +1,70 @@
 <template>
-  <div class="chat">
-    <h2>AI 对话</h2>
-    <div class="chat-box" ref="chatBox">
-      <div v-for="(msg, i) in messages" :key="i" :class="['msg', msg.role]">
-        <div class="msg-content" v-html="renderContent(msg.content)"></div>
-        <div class="msg-time">{{ msg.time }}</div>
+  <v-container fluid class="pa-6" style="max-width:900px">
+    <h1 class="text-h4 font-weight-bold mb-1">Chat</h1>
+    <p class="text-body-1 text-medium-emphasis mb-6">AI conversation via Bailian models</p>
+
+    <v-card variant="outlined" rounded="xl" class="mb-4" max-height="60vh" style="overflow-y:auto">
+      <div ref="chatRef" class="pa-4">
+        <div v-for="(msg, i) in messages" :key="i" :class="['d-flex mb-4', msg.role === 'user' ? 'justify-end' : '']">
+          <v-card :color="msg.role === 'user' ? 'primary' : 'surface-variant'" :variant="msg.role === 'user' ? 'flat' : 'tonal'" max-width="80%" rounded="xl" class="pa-3">
+            <div v-if="msg.role === 'assistant'" v-html="renderMarkdown(msg.content)" class="text-body-2" />
+            <div v-else class="text-body-2">{{ msg.content }}</div>
+          </v-card>
+        </div>
+        <div v-if="streaming" class="d-flex mb-4">
+          <v-card color="surface-variant" variant="tonal" max-width="80%" rounded="xl" class="pa-3">
+            <div v-html="renderMarkdown(streamContent)" class="text-body-2" />
+            <v-progress-linear indeterminate color="primary" class="mt-2" style="height:2px" />
+          </v-card>
+        </div>
       </div>
-      <div v-if="streaming" class="msg assistant">
-        <div class="msg-content" v-html="renderContent(streamContent)"></div>
+    </v-card>
+
+    <v-card variant="outlined" rounded="xl" class="pa-4">
+      <v-select v-model="model" :items="models" label="Model" variant="outlined" density="compact" hide-details class="mb-3" style="max-width:300px" />
+      <v-textarea v-model="input" label="Message" variant="outlined" rows="2" density="compact" placeholder="Type your message..." hide-details @keydown.enter.exact.prevent="send" />
+      <div class="d-flex align-center ga-2 mt-3">
+        <v-btn color="primary" rounded="lg" @click="send" :loading="streaming" :disabled="!input.trim()">Send</v-btn>
+        <v-switch v-model="useStream" label="Stream" density="compact" hide-details color="primary" />
+        <v-spacer />
+        <v-btn variant="text" color="error" size="small" @click="messages = []; streamContent = ''">Clear</v-btn>
       </div>
-    </div>
-    <div class="input-row">
-      <el-input v-model="input" placeholder="输入消息..." @keydown.enter="send" :disabled="streaming" type="textarea" :rows="3" />
-      <el-button type="primary" @click="send" :loading="streaming" style="margin-top:8px">发送</el-button>
-    </div>
-  </div>
+    </v-card>
+  </v-container>
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted } from 'vue'
-import { chatStream } from '../api'
+import { ref, nextTick } from 'vue'
 import { marked } from 'marked'
+import api from '../api'
 
-const messages = ref([])
-const input = ref('')
-const streaming = ref(false)
-const streamContent = ref('')
-const chatBox = ref(null)
+const models = [{ id: 'qwen-plus', name: 'Qwen Plus' }, { id: 'qwen-max', name: 'Qwen Max' }, { id: 'qwen-turbo', name: 'Qwen Turbo' }, { id: 'deepseek-r1', name: 'DeepSeek R1' }, { id: 'deepseek-v3', name: 'DeepSeek V3' }]
+const model = ref('qwen-plus'); const input = ref(''); const messages = ref([])
+const streaming = ref(false); const streamContent = ref(''); const useStream = ref(true)
+const chatRef = ref(null)
 
-function renderContent(text) {
-  if (!text) return ''
-  return marked(text, { breaks: true })
-}
-
-function addMsg(role, content) {
-  messages.value.push({ role, content, time: new Date().toLocaleTimeString() })
-}
+function renderMarkdown(text) { return marked(text || '', { breaks: true }) }
 
 async function send() {
-  const text = input.value.trim()
-  if (!text || streaming.value) return
-  input.value = ''
-  addMsg('user', text)
-  streaming.value = true
-  streamContent.value = ''
-  await nextTick()
-  scrollDown()
-
-  try {
-    const resp = await chatStream({
-      model: 'qwen-plus',
-      messages: [{ role: 'user', content: text }],
-      stream: true,
-    })
-    const reader = resp.body.getReader()
-    const decoder = new TextDecoder()
-    let full = ''
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      const chunk = decoder.decode(value, { stream: true })
-      const lines = chunk.split('\n')
-      for (const line of lines) {
-        if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-          try {
-            const json = JSON.parse(line.slice(6))
-            const content = json.choices?.[0]?.delta?.content || ''
-            full += content
-            streamContent.value = full
-            await nextTick()
-            scrollDown()
-          } catch {}
-        }
-      }
-    }
-    addMsg('assistant', full)
-    streamContent.value = ''
-  } catch (e) {
-    addMsg('assistant', '错误: ' + e.message)
-  }
-  streaming.value = false
+  if (!input.value.trim()) return
+  const msg = input.value.trim(); input.value = ''
+  messages.value.push({ role: 'user', content: msg })
+  if (useStream.value) { await sendStream(msg) } else { await sendNormal(msg) }
 }
 
-function scrollDown() {
-  if (chatBox.value) {
-    chatBox.value.scrollTop = chatBox.value.scrollHeight
-  }
+async function sendNormal(msg) {
+  try { const r = await api.post('/chat/completions', { model: model.value, messages: [...messages.value.slice(-10)] }); const content = r.data.choices?.[0]?.message?.content || ''; messages.value.push({ role: 'assistant', content }); await nextTick(); chatRef.value?.scrollTo(0, chatRef.value.scrollHeight) }
+  catch (e) { messages.value.push({ role: 'assistant', content: 'Error: ' + (e.response?.data?.message || e.message) }) }
+}
+
+async function sendStream(msg) {
+  streaming.value = true; streamContent.value = ''
+  try {
+    const resp = await fetch('/api/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: model.value, messages: [...messages.value.slice(-10)], stream: true }) })
+    const reader = resp.body.getReader(); const decoder = new TextDecoder(); let buf = ''
+    while (true) { const { done, value } = await reader.read(); if (done) break; buf += decoder.decode(value, { stream: true }); const lines = buf.split('\n'); buf = lines.pop(); for (const line of lines) { if (line.startsWith('data: ') && line !== 'data: [DONE]') { try { const d = JSON.parse(line.slice(6)); const c = d.choices?.[0]?.delta?.content; if (c) streamContent.value += c; await nextTick(); chatRef.value?.scrollTo(0, chatRef.value.scrollHeight) } catch(_) {} } } }
+    messages.value.push({ role: 'assistant', content: streamContent.value })
+  } catch (e) { messages.value.push({ role: 'assistant', content: 'Error: ' + e.message }) }
+  streaming.value = false; streamContent.value = ''
 }
 </script>
-
-<style scoped>
-.chat { max-width: 900px; margin: 0 auto; }
-.chat-box { height: calc(100vh - 260px); overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; background: #fff; margin: 16px 0; }
-.msg { margin-bottom: 16px; }
-.msg.user .msg-content { background: #409eff; color: #fff; border-radius: 12px 12px 0 12px; padding: 10px 14px; display: inline-block; max-width: 80%; }
-.msg.assistant .msg-content { background: #f0f0f0; border-radius: 12px 12px 12px 0; padding: 10px 14px; display: inline-block; max-width: 80%; }
-.msg.user { text-align: right; }
-.msg-time { font-size: 11px; color: #999; margin-top: 4px; }
-.input-row { display: flex; flex-direction: column; }
-</style>

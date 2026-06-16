@@ -1,18 +1,10 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import AutoImport from 'unplugin-auto-import/vite'
-import Components from 'unplugin-vue-components/vite'
-import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
+import vuetify from 'vite-plugin-vuetify'
 
 export default defineConfig({
-  plugins: [
-    vue(),
-    AutoImport({ resolvers: [ElementPlusResolver()] }),
-    Components({ resolvers: [ElementPlusResolver()] }),
-  ],
+  plugins: [vue(), vuetify({ autoImport: true })],
   server: {
-    proxy: {
-      '/api': 'http://backend:8080',
-    },
-  },
+    proxy: { '/api': 'http://backend:8080' }
+  }
 })

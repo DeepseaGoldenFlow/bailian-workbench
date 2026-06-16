@@ -1,52 +1,30 @@
 <template>
-  <div class="page">
-    <h2>语音合成 (TTS)</h2>
-    <el-form label-width="80px" style="max-width:600px">
-      <el-form-item label="文本">
-        <el-input v-model="input" type="textarea" :rows="4" placeholder="输入要合成语音的文字..." />
-      </el-form-item>
-      <el-form-item label="音色">
-        <el-select v-model="voice">
-          <el-option label="Cherry" value="Cherry" />
-          <el-option label="Eric" value="Eric" />
-          <el-option label="Emily" value="Emily" />
-          <el-option label="Luna" value="Luna" />
-        </el-select>
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" @click="synthesize" :loading="loading">合成语音</el-button>
-      </el-form-item>
-    </el-form>
-    <div v-if="audioUrl" class="result">
+  <v-container fluid class="pa-6" style="max-width:600px">
+    <h1 class="text-h4 font-weight-bold mb-1">Text to Speech</h1>
+    <p class="text-body-1 text-medium-emphasis mb-6">Convert text to natural speech</p>
+    <v-card variant="outlined" rounded="xl" class="pa-4">
+      <v-textarea v-model="text" label="Text" variant="outlined" rows="4" density="comfortable" hide-details class="mb-4" />
+      <v-select v-model="voice" :items="voices" label="Voice" variant="outlined" density="comfortable" hide-details class="mb-4" />
+      <v-select v-model="format" :items="['mp3','wav','opus']" label="Format" variant="outlined" density="comfortable" hide-details class="mb-4" />
+      <v-btn block color="primary" size="large" rounded="lg" :loading="loading" :disabled="!text" @click="generate" variant="flat">Generate Speech</v-btn>
+    </v-card>
+    <v-card v-if="audioUrl" variant="outlined" rounded="xl" class="mt-4 pa-4">
       <audio :src="audioUrl" controls style="width:100%" />
-    </div>
-  </div>
+    </v-card>
+    <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mt-4" closable>{{ error }}</v-alert>
+  </v-container>
 </template>
 
 <script setup>
 import { ref } from 'vue'
 import { tts } from '../api'
-
-const input = ref('')
-const voice = ref('Cherry')
-const loading = ref(false)
-const audioUrl = ref('')
-
-async function synthesize() {
-  if (!input.value.trim()) return
-  loading.value = true
-  audioUrl.value = ''
-  try {
-    const { data } = await tts({ input: input.value, voice: voice.value, format: 'mp3' })
-    audioUrl.value = URL.createObjectURL(data)
-  } catch (e) {
-    alert('TTS 错误: ' + (e.response?.data || e.message))
-  }
+const voices = ['Cherry', 'Emily', 'Sarah', 'Michael', 'David', 'Jessica', 'Amelia', 'Ethan', 'Mia', 'Lucas']
+const text = ref(''); const voice = ref('Cherry'); const format = ref('mp3')
+const loading = ref(false); const audioUrl = ref(''); const error = ref('')
+async function generate() {
+  loading.value = true; error.value = ''; audioUrl.value = ''
+  try { const r = await tts({ input: text.value, voice: voice.value, format: format.value }); audioUrl.value = URL.createObjectURL(r.data) }
+  catch (e) { error.value = e.response?.data?.message || e.message }
   loading.value = false
 }
 </script>
-
-<style scoped>
-.page { max-width: 900px; margin: 0 auto; }
-.result { background: #fff; padding: 16px; border-radius: 8px; margin-top: 16px; }
-</style>

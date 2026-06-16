@@ -1,99 +1,59 @@
 <template>
-  <div class="page">
-    <h2>工具箱</h2>
-    <el-tabs v-model="activeTab">
-      <el-tab-pane label="翻译" name="translate">
-        <h3>文本翻译</h3>
-        <el-input v-model="tl.text" type="textarea" :rows="4" placeholder="输入要翻译的文本..." />
-        <div style="margin: 8px 0; display:flex; gap:12px">
-          <el-select v-model="tl.source" placeholder="源语言"><el-option label="自动检测" value="auto" /><el-option label="中文" value="zh" /><el-option label="英文" value="en" /><el-option label="日文" value="ja" /></el-select>
-          <el-select v-model="tl.target" placeholder="目标语言"><el-option label="中文" value="zh" /><el-option label="英文" value="en" /><el-option label="日文" value="ja" /></el-select>
-          <el-button type="primary" @click="doTranslate" :loading="tl.loading">翻译</el-button>
-        </div>
-        <div v-if="tl.result"><el-input v-model="tl.result" type="textarea" :rows="4" readonly /></div>
-      </el-tab-pane>
-      <el-tab-pane label="OCR" name="ocr">
-        <h3>图片文字识别</h3>
-        <div class="ocr-upload" @paste="onOCRPaste" tabindex="0">
-          <el-upload :auto-upload="false" :on-change="onOCRFile" accept="image/*" :limit="1">
-            <el-button>选择图片</el-button>
-          </el-upload>
-          <span class="paste-hint">或 Ctrl+V 粘贴图片</span>
-        </div>
-        <div v-if="ocr.previewUrl" style="margin:8px 0"><el-image :src="ocr.previewUrl" fit="contain" style="max-width:300px;max-height:300px" /></div>
-        <el-button type="primary" @click="doOCR" :loading="ocr.loading" style="margin-top:8px">开始识别</el-button>
-        <div v-if="ocr.result"><el-input v-model="ocr.result" type="textarea" :rows="6" readonly /></div>
-      </el-tab-pane>
-      <el-tab-pane label="文档处理" name="doc">
-        <h3>文档智能处理</h3>
-        <el-select v-model="doc.task" style="margin-bottom:8px"><el-option label="摘要" value="summarize" /><el-option label="问答" value="qa" /><el-option label="提取" value="extract" /><el-option label="翻译" value="translate" /></el-select>
-        <el-input v-model="doc.text" type="textarea" :rows="6" placeholder="输入文档内容..." />
-        <el-input v-if="doc.task==='qa'" v-model="doc.question" placeholder="输入问题..." style="margin-top:8px" />
-        <el-button type="primary" @click="doDoc" :loading="doc.loading" style="margin-top:8px">处理</el-button>
-        <div v-if="doc.result"><el-input v-model="doc.result" type="textarea" :rows="6" readonly /></div>
-      </el-tab-pane>
-    </el-tabs>
-  </div>
+  <v-container fluid class="pa-6" style="max-width:800px">
+    <h1 class="text-h4 font-weight-bold mb-1">Toolbox</h1>
+    <p class="text-body-1 text-medium-emphasis mb-6">Translation, OCR, and document analysis</p>
+
+    <v-tabs v-model="tab" color="primary" class="mb-4">
+      <v-tab value="translate">Translate</v-tab>
+      <v-tab value="ocr">OCR</v-tab>
+      <v-tab value="document">Document</v-tab>
+    </v-tabs>
+
+    <v-card variant="outlined" rounded="xl" class="pa-4">
+      <div v-if="tab === 'translate'">
+        <v-row dense class="mb-3">
+          <v-col cols="6"><v-select v-model="srcLang" :items="languages" label="From" variant="outlined" density="comfortable" hide-details /></v-col>
+          <v-col cols="6"><v-select v-model="tgtLang" :items="languages" label="To" variant="outlined" density="comfortable" hide-details /></v-col>
+        </v-row>
+        <v-textarea v-model="transText" label="Text" variant="outlined" rows="4" density="comfortable" hide-details class="mb-3" />
+        <v-btn color="primary" rounded="lg" :loading="transLoading" @click="doTranslate" variant="flat">Translate</v-btn>
+        <v-card v-if="transResult" variant="tonal" rounded="xl" class="mt-4 pa-4"><div class="text-body-1">{{ transResult }}</div></v-card>
+      </div>
+
+      <div v-if="tab === 'ocr'">
+        <v-file-input v-model="ocrFile" label="Image File" variant="outlined" density="comfortable" accept="image/*" hide-details class="mb-3" />
+        <v-btn color="primary" rounded="lg" :loading="ocrLoading" :disabled="!ocrFile" @click="doOCR" variant="flat">Extract Text</v-btn>
+        <v-card v-if="ocrResult" variant="tonal" rounded="xl" class="mt-4 pa-4"><div class="text-body-1" style="white-space:pre-wrap">{{ ocrResult }}</div></v-card>
+      </div>
+
+      <div v-if="tab === 'document'">
+        <v-select v-model="docTask" :items="['summarize','qa','extract','translate']" label="Task" variant="outlined" density="comfortable" hide-details class="mb-3" />
+        <v-textarea v-model="docText" label="Document Text" variant="outlined" rows="6" density="comfortable" hide-details class="mb-3" />
+        <v-text-field v-if="docTask === 'qa'" v-model="docQuestion" label="Question" variant="outlined" density="comfortable" hide-details class="mb-3" />
+        <v-btn color="primary" rounded="lg" :loading="docLoading" :disabled="!docText" @click="doDocument" variant="flat">Analyze</v-btn>
+        <v-card v-if="docResult" variant="tonal" rounded="xl" class="mt-4 pa-4"><div class="text-body-1" style="white-space:pre-wrap">{{ docResult }}</div></v-card>
+      </div>
+    </v-card>
+
+    <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mt-4" closable>{{ error }}</v-alert>
+  </v-container>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { translate, ocr, document_ } from '../api'
+import { ref } from 'vue'
+import { translate as tr, ocr, document_ as doc } from '../api'
+const tab = ref('translate'); const error = ref('')
 
-const activeTab = ref('translate')
+const languages = [{ title: 'Auto', value: 'auto' }, { title: 'Chinese', value: 'zh' }, { title: 'English', value: 'en' }, { title: 'Japanese', value: 'ja' }, { title: 'Korean', value: 'ko' }, { title: 'French', value: 'fr' }, { title: 'German', value: 'de' }, { title: 'Spanish', value: 'es' }]
+const srcLang = ref('auto'); const tgtLang = ref('en'); const transText = ref(''); const transResult = ref(''); const transLoading = ref(false)
 
-const tl = reactive({ text: '', source: 'auto', target: 'en', loading: false, result: '' })
-async function doTranslate() {
-  if (!tl.text.trim()) return
-  tl.loading = true; tl.result = ''
-  try { const { data } = await translate({ text: tl.text, source_lang: tl.source, target_lang: tl.target }); tl.result = data.translated_text } catch (e) { tl.result = String(e.response?.data || e.message) }
-  tl.loading = false
-}
+async function doTranslate() { transLoading.value = true; error.value = ''; try { const r = await tr({ text: transText.value, source_lang: srcLang.value, target_lang: tgtLang.value }); transResult.value = r.data.translated_text } catch (e) { error.value = e.response?.data?.message || e.message }; transLoading.value = false }
 
-const ocrData = reactive({ loading: false, result: '', previewUrl: '', file: null })
-async function onOCRFile(uploadFile) {
-  ocrData.file = uploadFile.raw
-  ocrData.previewUrl = URL.createObjectURL(uploadFile.raw)
-}
-function loadOCRImage(file) {
-  if (!file || !file.type.startsWith('image/')) return
-  ocrData.file = file
-  ocrData.previewUrl = URL.createObjectURL(file)
-}
-function onOCRPaste(e) {
-  const items = e.clipboardData?.items
-  if (!items) return
-  for (const item of items) {
-    if (item.type.startsWith('image/')) {
-      loadOCRImage(item.getAsFile())
-      break
-    }
-  }
-}
-async function doOCR() {
-  if (!ocrData.file) return
-  ocrData.loading = true; ocrData.result = ''
-  try {
-    const reader = new FileReader()
-    const base64 = await new Promise((resolve) => { reader.onload = () => resolve(reader.result.split(',')[1]); reader.readAsDataURL(ocrData.file) })
-    const { data } = await ocr({ image_base64: base64 })
-    ocrData.result = data.text
-  } catch (e) { ocrData.result = String(e.response?.data || e.message) }
-  ocrData.loading = false
-}
+const ocrFile = ref(null); const ocrResult = ref(''); const ocrLoading = ref(false)
 
-const doc = reactive({ task: 'summarize', text: '', question: '', loading: false, result: '' })
-async function doDoc() {
-  if (!doc.text.trim()) return
-  doc.loading = true; doc.result = ''
-  try { const { data } = await document_({ task: doc.task, text: doc.text, question: doc.question }); doc.result = data.result } catch (e) { doc.result = String(e.response?.data || e.message) }
-  doc.loading = false
-}
+async function doOCR() { ocrLoading.value = true; error.value = ''; try { const r = new FileReader(); r.onload = async (e) => { const b64 = e.target.result.split(',')[1]; const resp = await ocr({ image_base64: b64 }); ocrResult.value = resp.data.text }; r.readAsDataURL(ocrFile.value) } catch (e) { error.value = e.response?.data?.message || e.message }; ocrLoading.value = false }
+
+const docTask = ref('summarize'); const docText = ref(''); const docQuestion = ref(''); const docResult = ref(''); const docLoading = ref(false)
+
+async function doDocument() { docLoading.value = true; error.value = ''; try { const r = await doc({ text: docText.value, task: docTask.value, question: docQuestion.value }); docResult.value = r.data.result } catch (e) { error.value = e.response?.data?.message || e.message }; docLoading.value = false }
 </script>
-
-<style scoped>
-.page { max-width: 900px; margin: 0 auto; }
-pre { white-space: pre-wrap; font-size: 13px; background: #f5f5f5; padding: 12px; border-radius: 4px; margin-top: 8px; }
-.ocr-upload { display: flex; align-items: center; gap: 12px; padding: 4px 0; outline: none; }
-.paste-hint { color: #909399; font-size: 12px; }
-</style>
