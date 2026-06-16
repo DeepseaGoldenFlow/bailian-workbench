@@ -56,7 +56,7 @@ func HandleChat(ds *client.DashScope) http.HandlerFunc {
 	}
 }
 
-func handleStreamResponse(w http.ResponseWriter, resp *http.Response, model string) {
+func handleStreamResponse(w http.ResponseWriter, resp *http.Response, modelName string) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -97,7 +97,7 @@ func handleStreamResponse(w http.ResponseWriter, resp *http.Response, model stri
 	flusher.Flush()
 
 	if fullContent.Len() > 0 {
-		repository.SaveChatMessage("default", "assistant", model, fullContent.String())
+		repository.SaveChatMessage("default", "assistant", modelName, fullContent.String())
 	}
 }
 
