@@ -54,6 +54,8 @@ func main() {
 	mux.HandleFunc("POST /api/toolbox/document", handler.HandleDocument(ds))
 
 	// History
+	mux.HandleFunc("GET /api/history", handler.HandleUnifiedHistory())
+	mux.HandleFunc("DELETE /api/history/{id}", handler.HandleDeleteUnified())
 	mux.HandleFunc("GET /api/history/chat", handler.HandleChatHistory())
 	mux.HandleFunc("GET /api/history/generations", handler.HandleGenHistory())
 	mux.HandleFunc("DELETE /api/history/chat/{id}", handler.HandleDeleteChat())
@@ -64,6 +66,12 @@ func main() {
 
 	// Task polling
 	mux.HandleFunc("GET /api/tasks/{taskID}", handler.HandleTaskPoll(ds))
+
+	// Storage - serve downloaded media files
+	fs := http.FileServer(http.Dir(handler.StoragePath))
+	mux.HandleFunc("GET /api/storage/", func(w http.ResponseWriter, r *http.Request) {
+		http.StripPrefix("/api/storage/", fs).ServeHTTP(w, r)
+	})
 
 	// Health
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {

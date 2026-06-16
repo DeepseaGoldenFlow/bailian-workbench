@@ -1,217 +1,146 @@
 <template>
   <div class="page">
-    <h2>历史记录</h2>
-    <el-tabs v-model="tab">
-      <el-tab-pane label="对话历史" name="chat">
-        <el-table :data="chatList" stripe>
-          <el-table-column prop="id" label="ID" width="60" />
-          <el-table-column prop="role" label="角色" width="80" />
-          <el-table-column prop="model" label="模型" width="120" />
-          <el-table-column prop="content" label="内容" show-overflow-tooltip />
-          <el-table-column prop="created_at" label="时间" width="180" />
-          <el-table-column label="操作" width="80">
-            <template #default="scope">
-              <el-button type="danger" size="small" @click="delChat(scope.row.id)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-tab-pane>
-      <el-tab-pane label="生成历史" name="gen">
-        <el-select v-model="genType" style="margin-bottom:12px" @change="loadGen">
-          <el-option label="全部" value="" />
-          <el-option label="图片" value="image" />
-          <el-option label="视频" value="video" />
-          <el-option label="音频" value="audio" />
-          <el-option label="翻译" value="translate" />
-          <el-option label="OCR" value="ocr" />
-          <el-option label="代码" value="code" />
-          <el-option label="文档" value="document" />
-          <el-option label="ASR" value="asr" />
-        </el-select>
-        <el-table :data="genList" stripe>
-          <el-table-column prop="id" label="ID" width="60" />
-          <el-table-column prop="type" label="类型" width="70" />
-          <el-table-column prop="model" label="模型" width="150" show-overflow-tooltip />
-          <el-table-column prop="prompt" label="提示词" show-overflow-tooltip />
-          <el-table-column label="状态" width="110">
-            <template #default="scope">
-              <el-tag :type="statusTag(scope.row.status)" size="small">{{ scope.row.status }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="created_at" label="时间" width="180" />
-          <el-table-column label="操作" width="160">
-            <template #default="scope">
-              <el-button v-if="scope.row.status==='PENDING'||scope.row.status==='RUNNING'" type="primary" size="small" @click="viewTask(scope.row)">查看</el-button>
-              <el-button v-else-if="scope.row.result" type="success" size="small" @click="viewTask(scope.row)">结果</el-button>
-              <el-button type="danger" size="small" @click="delGen(scope.row.id)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-tab-pane>
-    </el-tabs>
-
-    <el-dialog v-model="detailVisible" title="任务详情" width="700px">
-      <el-descriptions :column="2" border size="small">
-        <el-descriptions-item label="任务ID">{{ detail.task_id }}</el-descriptions-item>
-        <el-descriptions-item label="状态">
-          <el-tag :type="statusTag(detail.status)">{{ detail.status }}</el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="模型">{{ detail.model }}</el-descriptions-item>
-        <el-descriptions-item label="类型">{{ detail.type }}</el-descriptions-item>
-        <el-descriptions-item label="提示词" :span="2">{{ detail.prompt }}</el-descriptions-item>
-      </el-descriptions>
-      <div v-if="detail.status==='PENDING'||detail.status==='RUNNING'" style="margin-top:12px">
-        <el-button @click="refreshDetail" :loading="detailPolling" type="primary">刷新状态</el-button>
+    <header class="page-header"><h1>Execution History</h1><p class="page-desc">All generations and conversations in one place</p></header>
+    <div class="toolbar">
+      <div class="filters">
+        <button v-for="f in filters" :key="f.value" :class="['filter-btn', { active: activeFilter === f.value }]" @click="activeFilter = f.value; loadHistory()">{{ f.label }}</button>
       </div>
-      <div v-if="detailVideo" style="margin-top:12px">
-        <video :src="detailVideo" controls style="max-width:100%;max-height:400px" />
+      <button class="btn-refresh" @click="loadHistory" :disabled="loading">Refresh</button>
+    </div>
+    <div v-if="loading" class="loading-bar"><div class="loading-indeterminate"></div></div>
+    <div v-if="error" class="error-card"><div class="error-icon">!</div><div class="error-text">{{ error }}</div></div>
+    <div v-if="!loading && !error && entries.length === 0" class="empty-state"><div class="empty-icon">&#9716;</div><p>No history yet</p></div>
+    <div class="timeline">
+      <div v-for="entry in entries" :key="entry.type + '-' + entry.id" :class="['entry-card', entry.type]">
+        <div class="entry-meta">
+          <span :class="['type-badge', entry.type]">{{ typeLabel(entry.type) }}</span>
+          <span class="entry-model">{{ entry.model || 'unknown' }}</span>
+          <span v-if="entry.status" :class="['status-dot-sm', entry.status.toLowerCase()]"></span>
+          <span class="entry-time">{{ entry.created_at }}</span>
+        </div>
+        <div class="entry-body">
+          <div class="entry-prompt" @click="entry._expanded = !entry._expanded">{{ entry.prompt || entry.content }}</div>
+          <div v-if="entry._expanded" class="entry-detail">
+            <div v-if="entry.type === 'chat'" class="detail-section"><div class="detail-label">Message</div><div class="detail-text">{{ entry.content }}</div></div>
+            <div v-if="parsedImages(entry.result).length" class="detail-section"><div class="detail-label">Images</div><div class="result-thumbs"><img v-for="(url, i) in parsedImages(entry.result)" :key="i" :src="url" @click="previewUrl = url" loading="lazy" /></div></div>
+            <div v-if="parsedVideo(entry.result)" class="detail-section"><div class="detail-label">Video</div><video :src="parsedVideo(entry.result)" controls style="max-width:100%;max-height:300px" /></div>
+          </div>
+        </div>
+        <div class="entry-actions">
+          <button class="act-btn" @click="entry._expanded = !entry._expanded">{{ entry._expanded ? 'Collapse' : 'Expand' }}</button>
+          <button class="act-btn del" @click="deleteEntry(entry)">Delete</button>
+        </div>
       </div>
-      <div v-if="detailImages.length" class="detail-imgs">
-        <el-image v-for="(img,i) in detailImages" :key="i" :src="img" fit="contain" style="max-width:300px;max-height:300px" :preview-src-list="detailImages" />
-      </div>
-      <div v-if="detailText" style="margin-top:12px;background:#f5f7fa;padding:12px;border-radius:4px;white-space:pre-wrap">{{ detailText }}</div>
-      <div v-if="detailRaw" style="margin-top:12px">
-        <el-collapse><el-collapse-item title="原始响应"><pre>{{ detailRaw }}</pre></el-collapse-item></el-collapse>
-      </div>
-    </el-dialog>
+    </div>
+    <div v-if="previewUrl" class="preview-overlay" @click="previewUrl = null"><img :src="previewUrl" class="preview-img" /><button class="preview-close">&times;</button></div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
-import { chatHistory, genHistory, deleteChat, deleteGen } from '../api'
-
-const tab = ref('chat')
-const chatList = ref([])
-const genList = ref([])
-const genType = ref('')
-const detailVisible = ref(false)
-const detail = ref({})
-const detailVideo = ref('')
-const detailImages = ref([])
-const detailText = ref('')
-const detailRaw = ref('')
-const detailPolling = ref(false)
-let pollTimer = null
-
-function statusTag(s) {
-  switch (s) {
-    case 'SUCCEEDED': return 'success'
-    case 'FAILED': return 'danger'
-    case 'RUNNING': return 'warning'
-    case 'PENDING': return 'info'
-    default: return ''
-  }
+import { ref, onMounted } from 'vue'
+import api from '../api'
+const entries = ref([])
+const loading = ref(false)
+const error = ref('')
+const activeFilter = ref('')
+const previewUrl = ref(null)
+const filters = [
+  { label: 'All', value: '' }, { label: 'Chat', value: 'chat' },
+  { label: 'Images', value: 'image' }, { label: 'Videos', value: 'video' },
+  { label: 'Audio', value: 'audio' }, { label: 'Translate', value: 'translate' },
+  { label: 'OCR', value: 'ocr' },
+]
+function typeLabel(t) {
+  const m = { chat: 'Chat', image: 'Image', video: 'Video', audio: 'Audio', translate: 'Translate', ocr: 'OCR', document: 'Doc', asr: 'ASR' }
+  return m[t] || t
 }
-
-async function loadChat() {
-  try { const { data } = await chatHistory(); chatList.value = data } catch {}
-}
-async function loadGen() {
-  try { const { data } = await genHistory(genType.value); genList.value = data; scheduleAutoPoll() } catch {}
-}
-async function delChat(id) {
-  try { await deleteChat(id); await loadChat() } catch {}
-}
-async function delGen(id) {
-  try { await deleteGen(id); await loadGen() } catch {}
-}
-
-function viewTask(row) {
-  detail.value = row
-  detailVideo.value = ''
-  detailImages.value = []
-  detailText.value = ''
-  detailRaw.value = ''
-  if (row.result) {
-    try {
-      const parsed = JSON.parse(row.result)
-      detailRaw.value = JSON.stringify(parsed, null, 2)
-      if (typeof parsed === 'string') {
-        detailText.value = parsed
-      } else {
-        const url = parsed?.output?.video_url
-        if (url) detailVideo.value = url
-        const results = parsed?.output?.results
-        if (results) detailImages.value = results.map(r => r.url).filter(Boolean)
-        const choices = parsed?.output?.choices
-        if (choices) {
-          const imgs = []
-          for (const c of choices) {
-            for (const item of c?.message?.content || []) {
-              if (item.image) imgs.push(item.image)
-            }
-          }
-          if (imgs.length) detailImages.value = imgs
-        }
-      }
-    } catch {
-      detailText.value = row.result
-    }
-  }
-  detailVisible.value = true
-  if (row.task_id) {
-    refreshDetail()
-  }
-}
-
-async function refreshDetail() {
-  if (!detail.value.task_id) return
-  detailPolling.value = true
+function parsedImages(result) {
+  if (!result) return []
   try {
-    const resp = await fetch('/api/tasks/' + detail.value.task_id)
-    const data = await resp.json()
-    detailRaw.value = JSON.stringify(data, null, 2)
-    const newStatus = data.output?.task_status
-    if (newStatus) {
-      detail.value.status = newStatus
-      const row = genList.value.find(r => r.task_id === detail.value.task_id)
-      if (row) {
-        row.status = newStatus
-        if (newStatus === 'SUCCEEDED' || newStatus === 'FAILED') {
-          row.result = JSON.stringify(data)
-        }
-      }
+    const obj = JSON.parse(result)
+    if (obj.output?.results) return obj.output.results.map(r => r.url).filter(Boolean)
+    if (obj.output?.choices) {
+      const urls = []
+      for (const c of obj.output.choices) { const ct = c.message?.content; if (Array.isArray(ct)) for (const it of ct) { if (it.image) urls.push(it.image) } }
+      return urls
     }
-    const url = data.output?.video_url
-    if (url) detailVideo.value = url
-    const results = data.output?.results
-    if (results) detailImages.value = results.map(r => r.url).filter(Boolean)
-  } catch {}
-  detailPolling.value = false
+    if (Array.isArray(obj)) return obj.filter(u => typeof u === 'string')
+  } catch(_) {}
+  return []
 }
-
-function scheduleAutoPoll() {
-  clearInterval(pollTimer)
-  const active = genList.value.filter(r => r.status === 'PENDING' || r.status === 'RUNNING')
-  if (active.length) {
-    pollTimer = setInterval(async () => {
-      for (const row of active) {
-        try {
-          const resp = await fetch('/api/tasks/' + row.task_id)
-          const data = await resp.json()
-          const s = data.output?.task_status
-          if (s) {
-            row.status = s
-            if (s === 'SUCCEEDED' || s === 'FAILED') {
-              row.result = JSON.stringify(data)
-            }
-          }
-        } catch {}
-      }
-      if (!genList.value.some(r => r.status === 'PENDING' || r.status === 'RUNNING')) {
-        clearInterval(pollTimer)
-      }
-    }, 15000)
-  }
+function parsedVideo(result) {
+  if (!result) return null
+  try { const obj = JSON.parse(result); return obj.output?.video_url || null } catch(_) { return null }
 }
-
-onMounted(() => { loadChat(); loadGen() })
-onUnmounted(() => clearInterval(pollTimer))
+onMounted(() => loadHistory())
+async function loadHistory() {
+  loading.value = true; error.value = ''
+  try {
+    const params = activeFilter.value ? { type: activeFilter.value } : {}
+    const r = await api.get('/history', { params })
+    entries.value = (r.data.entries || []).map(e => ({ ...e, _expanded: false }))
+  } catch (e) { error.value = e.response?.data?.message || e.message || 'Failed' }
+  loading.value = false
+}
+async function deleteEntry(entry) {
+  try {
+    await api.delete('/history/' + entry.id, { params: { type: entry.type } })
+    entries.value = entries.value.filter(e => !(e.id === entry.id && e.type === entry.type))
+  } catch (e) { error.value = 'Delete failed' }
+}
 </script>
 
 <style scoped>
-.page { max-width: 900px; margin: 0 auto; }
-.detail-imgs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-pre { white-space: pre-wrap; font-size: 12px; max-height: 300px; overflow-y: auto; }
+.page { max-width: 1000px; margin: 0 auto; }
+.page-header { margin-bottom: 24px; }
+.page-header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+.page-desc { color: var(--text-secondary); margin-top: 4px; font-size: 14px; }
+.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px; flex-wrap: wrap; }
+.filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.filter-btn { padding: 6px 14px; background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 12px; font-weight: 500; cursor: pointer; transition: all var(--transition); }
+.filter-btn:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+.filter-btn.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.btn-refresh { padding: 6px 16px; background: var(--accent); border: none; border-radius: var(--radius-sm); color: #fff; font-size: 13px; cursor: pointer; }
+.btn-refresh:disabled { opacity: 0.4; }
+.loading-bar { height: 2px; background: var(--bg-card); border-radius: 1px; margin-bottom: 16px; overflow: hidden; }
+.loading-indeterminate { width: 30%; height: 100%; background: var(--accent); animation: progress 1.5s ease-in-out infinite; }
+@keyframes progress { 0% { transform: translateX(-100%); } 100% { transform: translateX(400%); } }
+.error-card { display: flex; gap: 12px; padding: 16px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: var(--radius-md); margin-bottom: 16px; }
+.error-icon { width: 24px; height: 24px; background: var(--danger); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0; }
+.error-text { font-size: 13px; color: #fca5a5; }
+.empty-state { display: flex; flex-direction: column; align-items: center; padding: 80px 32px; color: var(--text-muted); }
+.empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+.timeline { display: flex; flex-direction: column; gap: 8px; }
+.entry-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-md); padding: 16px; transition: border var(--transition); }
+.entry-card:hover { border-color: var(--border-subtle); }
+.entry-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.type-badge { padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.type-badge.chat { background: rgba(99,102,241,0.15); color: var(--accent); }
+.type-badge.image { background: rgba(168,85,247,0.15); color: #a855f7; }
+.type-badge.video { background: rgba(34,197,94,0.15); color: var(--success); }
+.type-badge.audio { background: rgba(245,158,11,0.15); color: var(--warning); }
+.type-badge.translate { background: rgba(59,130,246,0.15); color: #3b82f6; }
+.type-badge.ocr { background: rgba(236,72,153,0.15); color: #ec4899; }
+.entry-model { font-size: 11px; color: var(--text-muted); font-family: monospace; }
+.status-dot-sm { width: 6px; height: 6px; border-radius: 50%; }
+.status-dot-sm.succeeded { background: var(--success); }
+.status-dot-sm.pending, .status-dot-sm.running { background: var(--warning); animation: pulse 1.5s infinite; }
+.status-dot-sm.failed { background: var(--danger); }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.entry-time { font-size: 11px; color: var(--text-muted); margin-left: auto; font-family: monospace; }
+.entry-prompt { font-size: 13px; color: var(--text-secondary); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 600px; }
+.entry-prompt:hover { color: var(--text-primary); }
+.entry-detail { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 12px; }
+.detail-label { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.detail-text { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+.result-thumbs { display: flex; gap: 8px; flex-wrap: wrap; }
+.result-thumbs img { width: 80px; height: 80px; object-fit: cover; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--border-card); }
+.result-thumbs img:hover { border-color: var(--accent); }
+.entry-actions { display: flex; gap: 8px; margin-top: 10px; }
+.act-btn { padding: 4px 12px; background: none; border: 1px solid var(--border-card); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 11px; cursor: pointer; transition: all var(--transition); }
+.act-btn:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+.act-btn.del:hover { background: rgba(239,68,68,0.1); color: var(--danger); border-color: rgba(239,68,68,0.3); }
+.preview-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 100; cursor: pointer; }
+.preview-img { max-width: 90vw; max-height: 90vh; border-radius: var(--radius-md); }
+.preview-close { position: absolute; top: 24px; right: 24px; background: none; border: none; color: #fff; font-size: 32px; cursor: pointer; }
 </style>
