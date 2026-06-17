@@ -52,6 +52,7 @@ const isEdit=computed(()=>model.value==='happyhorse-1.0-video-edit')
 const isI2V=computed(()=>model.value==='happyhorse-1.0-i2v')
 const isR2V=computed(()=>model.value==='happyhorse-1.0-r2v')
 const canSubmit=computed(()=>{if(!model.value||!prompt.value)return false;if(isEdit.value&&!videoUrl.value)return false;if(isI2V.value&&!firstFrame.value)return false;if(isR2V.value&&!refImagesStr.value)return false;return true})
+onMounted(async()=>{try{const r=await fetchModels('video');models.value=r.data.models||[];if(models.value.length)model.value=models.value[0].id}catch(e){error.value='Failed to load models'}})
 const statusColor=computed(()=>{if(taskStatus.value==='SUCCEEDED')return'success';if(taskStatus.value==='FAILED')return'error';return'warning'})
 function parseRefImages(){if(!refImagesStr.value)return[];var NL=String.fromCharCode(10);return refImagesStr.value.replace(RegExp(NL,"g"),",").split(",").map(s=>s.trim()).filter(Boolean)}
 async function generate(){loading.value=true;error.value='';taskId.value='';resultUrl.value=''
