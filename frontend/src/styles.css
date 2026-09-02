@@ -1,0 +1,39 @@
+:root { font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif; font-synthesis: none; text-rendering: optimizeLegibility; }
+html { overflow-y: auto; }
+body { margin: 0; }
+.v-application { letter-spacing: 0 !important; }
+.app-main { min-height: 100vh; background: radial-gradient(circle at 92% 4%, rgba(99,102,241,.14), transparent 27rem), radial-gradient(circle at 20% 80%, rgba(14,165,233,.08), transparent 30rem), rgb(var(--v-theme-background)); }
+.app-sidebar { border-right: 1px solid rgba(var(--v-border-color), .12) !important; background: rgba(var(--v-theme-surface), .93) !important; backdrop-filter: blur(20px); }
+.brand { display: flex; align-items: center; gap: 12px; min-height: 82px; padding: 16px 18px; }
+.brand--rail { justify-content: center; padding-inline: 10px; }
+.brand__mark { width: 42px; height: 42px; flex: 0 0 42px; border-radius: 14px; display: grid; place-items: center; color: white; font-size: 19px; font-weight: 800; background: linear-gradient(145deg,#6366f1,#8b5cf6 58%,#0ea5e9); box-shadow: 0 10px 28px rgba(99,102,241,.3); }
+.brand__mark--small { width: 34px; height: 34px; flex-basis: 34px; border-radius: 11px; margin-left: 4px; }
+.brand__copy { min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.brand__copy strong { font-size: 16px; white-space: nowrap; }
+.brand__copy span { margin-top: 4px; color: rgb(var(--v-theme-on-surface-variant)); font-size: 11px; letter-spacing: .12em; }
+.sidebar-label { padding: 12px 22px 4px; color: rgb(var(--v-theme-on-surface-variant)); font-size: 11px; letter-spacing: .16em; }
+.nav-list { padding: 8px 12px !important; }
+.nav-item { min-height: 46px !important; margin-bottom: 5px; color: rgb(var(--v-theme-on-surface-variant)); }
+.nav-item.v-list-item--active { background: rgba(var(--v-theme-primary), .12); color: rgb(var(--v-theme-primary)); }
+.sidebar-footer { display: flex; align-items: center; gap: 10px; padding: 14px; border-top: 1px solid rgba(var(--v-border-color), .1); }
+.sidebar-footer--rail { justify-content: center; }
+.sidebar-status { min-width: 0; flex: 1; display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 14px; background: rgba(var(--v-theme-success), .08); }
+.sidebar-status div { min-width: 0; display: flex; flex-direction: column; }
+.sidebar-status strong { font-size: 12px; }
+.sidebar-status span:last-child { margin-top: 2px; color: rgb(var(--v-theme-on-surface-variant)); font-size: 10px; }
+.status-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: rgb(var(--v-theme-success)); box-shadow: 0 0 0 5px rgba(var(--v-theme-success), .12); }
+.mobile-bar { background: rgba(var(--v-theme-surface), .88) !important; backdrop-filter: blur(18px); border-bottom: 1px solid rgba(var(--v-border-color), .1) !important; }
+.page-shell { width: min(1440px, 100%); margin: 0 auto; padding: 38px 40px 56px; }
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
+.page-eyebrow { color: rgb(var(--v-theme-primary)); font-size: 12px; font-weight: 750; letter-spacing: .18em; }
+.page-title { margin: 6px 0 7px; font-size: clamp(28px,3vw,40px); font-weight: 800; letter-spacing: -.035em; line-height: 1.15; }
+.page-subtitle { max-width: 720px; color: rgb(var(--v-theme-on-surface-variant)); font-size: 15px; line-height: 1.7; }
+.surface-card { border: 1px solid rgba(var(--v-border-color), .12) !important; background: rgba(var(--v-theme-surface), .82) !important; box-shadow: 0 20px 55px rgba(15,23,42,.06) !important; backdrop-filter: blur(14px); }
+.soft-card { border: 1px solid rgba(var(--v-border-color), .11) !important; background: rgba(var(--v-theme-surface), .58) !important; }
+.section-title { font-size: 18px; font-weight: 750; }
+.section-caption { color: rgb(var(--v-theme-on-surface-variant)); font-size: 13px; }
+.empty-state { min-height: 320px; display: grid; place-items: center; padding: 48px 24px; text-align: center; }
+.empty-state__icon { width: 68px; height: 68px; display: grid; place-items: center; margin: 0 auto 18px; border-radius: 22px; color: rgb(var(--v-theme-primary)); background: rgba(var(--v-theme-primary), .1); }
+.mono { font-family: "SFMono-Regular", Consolas, monospace; }
+@media (max-width:959px) { .page-shell { padding: 26px 20px 44px; }.page-header { flex-direction: column; margin-bottom: 22px; } }
+@media (max-width:599px) { .page-shell { padding-inline: 16px; }.page-title { font-size: 28px; } }

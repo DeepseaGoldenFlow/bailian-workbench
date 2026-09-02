@@ -1,90 +1,54 @@
 <template>
   <v-app>
-    <v-navigation-drawer v-model="drawer" :rail="rail" permanent>
-      <div class="d-flex align-center pa-4" :class="rail ? 'justify-center' : ''">
-        <v-avatar size="36" style="background:linear-gradient(135deg, var(--v-primary), #a855f7);flex-shrink:0">
-          <span class="text-subtitle-1 font-weight-bold">N</span>
-        </v-avatar>
-        <div v-if="!rail" class="ml-3 flex-1-1">
-          <div class="text-subtitle-1 font-weight-bold lh-1">Nova</div>
-          <div class="text-caption text-medium-emphasis">AI Workbench</div>
-        </div>
-        <v-btn
-          :icon="rail ? 'mdi-chevron-right' : 'mdi-chevron-left'"
-          variant="text"
-          size="32"
-          @click.stop="rail = !rail"
-          class="collapse-btn"
-          :class="rail ? 'mt-6' : 'ml-auto'"
-          :title="rail ? 'Expand sidebar' : 'Collapse sidebar'"
-        />
+    <v-navigation-drawer v-model="drawer" :permanent="!mobile" :rail="rail && !mobile" :width="264" :rail-width="76" class="app-sidebar">
+      <div class="brand" :class="{ 'brand--rail': rail && !mobile }">
+        <div class="brand__mark"><span>百</span></div>
+        <div v-if="!rail || mobile" class="brand__copy"><strong>百炼工作站</strong><span>灵感创作中心</span></div>
+        <v-btn v-if="!mobile" :icon="rail ? 'mdi-chevron-right' : 'mdi-chevron-left'" variant="text" size="small" class="ml-auto" :aria-label="rail ? '展开侧栏' : '收起侧栏'" @click="rail = !rail" />
       </div>
-
-      <v-divider />
-
-      <v-list density="compact" nav class="mt-2">
-        <v-list-item v-for="item in navItems" :key="item.path" :to="item.path" :prepend-icon="item.icon" :title="rail ? '' : item.label" color="primary" rounded="lg" class="mb-1" />
+      <div v-if="!rail || mobile" class="sidebar-label">创作空间</div>
+      <v-list nav density="comfortable" class="nav-list">
+        <v-list-item v-for="item in navItems" :key="item.path" :to="item.path" :prepend-icon="item.icon" :title="item.label" color="primary" rounded="xl" class="nav-item" @click="mobile && (drawer = false)" />
       </v-list>
-
       <template #append>
-        <div class="d-flex justify-center pa-2">
-          <v-btn
-            :icon="isDark ? 'mdi-weather-sunny' : 'mdi-weather-night'"
-            variant="text"
-            size="32"
-            @click="toggleTheme"
-            class="control-btn"
-            :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
-          />
+        <div class="sidebar-footer" :class="{ 'sidebar-footer--rail': rail && !mobile }">
+          <div v-if="!rail || mobile" class="sidebar-status"><span class="status-dot" /><div><strong>工作站已就绪</strong><span>模型目录自动同步</span></div></div>
+          <v-btn :icon="isDark ? 'mdi-white-balance-sunny' : 'mdi-weather-night'" variant="tonal" size="small" :aria-label="isDark ? '切换浅色模式' : '切换深色模式'" @click="toggleTheme" />
         </div>
       </template>
     </v-navigation-drawer>
 
-    <v-main :style="{ background: isDark ? 'linear-gradient(180deg, #0d1117 0%, #161b22 100%)' : 'linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%)' }">
-      <router-view />
-    </v-main>
+    <v-app-bar v-if="mobile" flat class="mobile-bar">
+      <v-app-bar-nav-icon aria-label="打开导航" @click="drawer = !drawer" />
+      <div class="brand__mark brand__mark--small"><span>百</span></div>
+      <v-app-bar-title class="font-weight-bold">百炼工作站</v-app-bar-title>
+      <v-btn :icon="isDark ? 'mdi-white-balance-sunny' : 'mdi-weather-night'" variant="text" :aria-label="isDark ? '切换浅色模式' : '切换深色模式'" @click="toggleTheme" />
+    </v-app-bar>
+    <v-main class="app-main"><router-view /></v-main>
   </v-app>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useTheme } from 'vuetify'
+import { computed, ref } from 'vue'
+import { useDisplay, useTheme } from 'vuetify'
 
+const { mobile } = useDisplay()
 const drawer = ref(true)
 const rail = ref(false)
 const theme = useTheme()
-const isDark = ref(true)
-
+const isDark = computed(() => theme.global.current.value.dark)
 const navItems = [
-  { path: '/', label: 'Home', icon: 'mdi-home-outline' },
-  { path: '/chat', label: 'Chat', icon: 'mdi-chat-outline' },
-  { path: '/image', label: 'Image', icon: 'mdi-image-outline' },
-  { path: '/video', label: 'Video', icon: 'mdi-video-outline' },
-  { path: '/tts', label: 'Voice', icon: 'mdi-microphone' },
-  { path: '/toolbox', label: 'Tools', icon: 'mdi-tools' },
-  { path: '/history', label: 'History', icon: 'mdi-history' },
+  { path: '/', label: '工作台', icon: 'mdi-view-dashboard-outline' },
+  { path: '/chat', label: '智能对话', icon: 'mdi-message-processing-outline' },
+  { path: '/image', label: '图片创作', icon: 'mdi-image-multiple-outline' },
+  { path: '/video', label: '视频创作', icon: 'mdi-movie-open-play-outline' },
+  { path: '/tts', label: '声音合成', icon: 'mdi-waveform' },
+  { path: '/toolbox', label: '智能工具', icon: 'mdi-creation-outline' },
+  { path: '/history', label: '创作记录', icon: 'mdi-history' },
 ]
-
-onMounted(() => {
-  const saved = localStorage.getItem('nova-theme')
-  if (saved === 'light') { theme.global.name.value = 'light'; isDark.value = false }
-})
-
 function toggleTheme() {
-  const newTheme = theme.global.current.value.dark ? 'light' : 'dark'
-  theme.global.name.value = newTheme
-  isDark.value = newTheme === 'dark'
-  localStorage.setItem('nova-theme', newTheme)
+  const next = isDark.value ? 'light' : 'dark'
+  theme.global.name.value = next
+  localStorage.setItem('nova-theme', next)
 }
 </script>
-
-<style>
-.v-navigation-drawer__content { display: flex; flex-direction: column; }
-.collapse-btn, .control-btn {
-  border-radius: 50% !important;
-  opacity: 0.7;
-  transition: opacity 0.15s, background 0.15s;
-}
-.collapse-btn:hover, .control-btn:hover { opacity: 1; background: rgba(128,128,128,0.12); }
-.lh-1 { line-height: 1.2; }
-</style>

@@ -3,13 +3,14 @@ import { createPinia } from 'pinia'
 import { createVuetify } from 'vuetify'
 import 'vuetify/styles'
 import '@mdi/font/css/materialdesignicons.css'
+import './styles.css'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 
 import App from './App.vue'
 import router from './router'
 
-const saved = localStorage.getItem('nova-theme') || 'dark'
+const saved = localStorage.getItem('nova-theme') || 'light'
 
 const vuetify = createVuetify({
   components,
@@ -20,29 +21,13 @@ const vuetify = createVuetify({
       dark: {
         dark: true,
         colors: {
-          background: '#0d1117',
-          surface: '#161b22',
-          'surface-variant': '#21262d',
-          primary: '#58a6ff',
-          secondary: '#8b949e',
-          error: '#f85149',
-          info: '#79c0ff',
-          success: '#3fb950',
-          warning: '#d29922',
+          background: '#0b1020', surface: '#12192b', 'surface-variant': '#1b2540', 'on-background': '#e5e7eb', 'on-surface': '#e5e7eb', 'on-surface-variant': '#94a3b8', primary: '#a5b4fc', secondary: '#7dd3fc', error: '#fb7185', info: '#38bdf8', success: '#34d399', warning: '#fbbf24',
         }
       },
       light: {
         dark: false,
         colors: {
-          background: '#ffffff',
-          surface: '#f6f8fa',
-          'surface-variant': '#eaeef2',
-          primary: '#0969da',
-          secondary: '#57606a',
-          error: '#cf222e',
-          info: '#0969da',
-          success: '#1a7f37',
-          warning: '#9a6700',
+          background: '#f5f7fb', surface: '#ffffff', 'surface-variant': '#eef1f8', 'on-background': '#172033', 'on-surface': '#172033', 'on-surface-variant': '#64748b', primary: '#4f46e5', secondary: '#0284c7', error: '#e11d48', info: '#0284c7', success: '#059669', warning: '#d97706',
         }
       }
     }

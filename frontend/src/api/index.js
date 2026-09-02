@@ -1,10 +1,11 @@
 import axios from 'axios'
 
-const api = axios.create({ baseURL: '/api', timeout: 300000 })
+const apiBase = import.meta.env.VITE_API_BASE || '/api'
+const api = axios.create({ baseURL: apiBase, timeout: 300000 })
 
 export function chat(payload) { return api.post('/chat/completions', payload) }
 export function chatStream(payload) {
-  return fetch('/api/chat/completions', {
+  return fetch(`${apiBase}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
