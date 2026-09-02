@@ -13,10 +13,14 @@ type DashScope struct {
 	client  *http.Client
 }
 
-func NewDashScope(apiKey string) *DashScope {
+func NewDashScope(apiKey string, baseURL ...string) *DashScope {
+	endpoint := "https://dashscope.aliyuncs.com"
+	if len(baseURL) > 0 && strings.TrimSpace(baseURL[0]) != "" {
+		endpoint = strings.TrimRight(strings.TrimSpace(baseURL[0]), "/")
+	}
 	return &DashScope{
 		apiKey:  apiKey,
-		baseURL: "https://dashscope.aliyuncs.com",
+		baseURL: endpoint,
 		client:  &http.Client{Timeout: 5 * time.Minute},
 	}
 }

@@ -27,7 +27,7 @@ func main() {
 	}
 	defer repository.DB.Close()
 
-	ds := client.NewDashScope(cfg.ApiKey)
+	ds := client.NewDashScope(cfg.ApiKey, cfg.BaseURL)
 
 	mux := http.NewServeMux()
 

@@ -13,15 +13,22 @@ const (
 	TypeSelect    = "select"
 	TypeMedia     = "media"
 	TypeMediaList = "media_list"
+	TypeJSON      = "json"
+)
+
+const (
+	ScopeInput      = "input"
+	ScopeParameters = "parameters"
 )
 
 type ModelEntry struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Category    string    `json:"category"`
-	Endpoint    string    `json:"endpoint"`
-	Async       bool      `json:"async"`
-	Description string    `json:"description"`
+	ID          string     `json:"id"`
+	Name        string     `json:"name"`
+	Category    string     `json:"category"`
+	Endpoint    string     `json:"endpoint"`
+	Async       bool       `json:"async"`
+	Payload     string     `json:"payload"`
+	Description string     `json:"description"`
 	Parameters  []ParamDef `json:"parameters"`
 }
 
@@ -29,12 +36,15 @@ type ParamDef struct {
 	Name        string   `json:"name"`
 	Label       string   `json:"label"`
 	Type        string   `json:"type"`
+	Scope       string   `json:"scope"`
 	Required    bool     `json:"required"`
 	Default     any      `json:"default,omitempty"`
 	Min         *float64 `json:"min,omitempty"`
 	Max         *float64 `json:"max,omitempty"`
+	Step        *float64 `json:"step,omitempty"`
 	Options     []Option `json:"options,omitempty"`
 	Description string   `json:"description,omitempty"`
+	Placeholder string   `json:"placeholder,omitempty"`
 }
 
 type Option struct {
