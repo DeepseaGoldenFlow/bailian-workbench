@@ -11,7 +11,12 @@ export function chatStream(payload) {
   })
 }
 export function fetchModels(category) {
-  return api.get('/models', { params: category ? { category } : {} })
+  return api.get('/models', { params: category ? { category } : {} }).catch(async error => {
+    if (!import.meta.env.PROD) throw error
+    const { data } = await axios.get(`${import.meta.env.BASE_URL}models.json`)
+    const models = category ? data.models.filter(model => model.category === category) : data.models
+    return { data: { models } }
+  })
 }
 export function imageGen(payload) { return api.post('/images/generate', payload) }
 export function videoGen(payload) { return api.post('/videos/generate', payload) }

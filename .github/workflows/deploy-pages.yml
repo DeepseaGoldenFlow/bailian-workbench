@@ -24,6 +24,14 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Export model catalog
+        working-directory: backend
+        run: |
+          mkdir -p ../frontend/public
+          go run ./cmd/catalog-export > ../frontend/public/models.json
       - run: npm ci
         working-directory: frontend
       - run: npm run build
