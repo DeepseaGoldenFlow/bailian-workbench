@@ -2,8 +2,10 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"bailian-workbench/internal/client"
 	"bailian-workbench/internal/model"
@@ -70,8 +72,21 @@ func HandleTTS(ds *client.DashScope) http.HandlerFunc {
 		}
 		defer audioResp.Body.Close()
 
-		w.Header().Set("Content-Type", "audio/mpeg")
-		w.Header().Set("Content-Disposition", "attachment; filename=speech.mp3")
+		contentType := audioResp.Header.Get("Content-Type")
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+		extension := req.Format
+		switch strings.ToLower(strings.Split(contentType, ";")[0]) {
+		case "audio/wav", "audio/x-wav", "audio/wave":
+			extension = "wav"
+		case "audio/mpeg", "audio/mp3":
+			extension = "mp3"
+		case "audio/ogg", "audio/opus":
+			extension = "opus"
+		}
+		w.Header().Set("Content-Type", contentType)
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=speech.%s", extension))
 		io.Copy(w, audioResp.Body)
 
 		repository.SaveGeneration("audio", "qwen-tts", req.Input, `["`+audioURL+`"]`, "", "completed")

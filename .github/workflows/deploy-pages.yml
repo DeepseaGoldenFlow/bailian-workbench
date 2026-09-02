@@ -17,6 +17,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      VITE_API_BASE: https://bytefort.taild08fe0.ts.net:8443/api
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

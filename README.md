@@ -4,7 +4,7 @@
 
 在线页面：[https://deepseagoldenflow.github.io/bailian-workbench/](https://deepseagoldenflow.github.io/bailian-workbench/)
 
-> GitHub Pages 会展示完整的模型与参数目录；生成能力仍需连接已部署的 HTTPS 后端服务。
+> GitHub Pages 会展示完整的模型与参数目录，并通过 NAS 的 Tailscale HTTPS 入口调用后端；使用生成能力的设备需要加入同一 Tailnet。
 
 ## 这版支持什么
 
