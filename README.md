@@ -2,6 +2,10 @@
 
 一个部署在 NAS 上的阿里云百炼多媒体工作站。图片和视频页面由后端模型目录动态生成表单，不再把模型参数写死在页面里。
 
+在线页面：[https://deepseagoldenflow.github.io/bailian-workbench/](https://deepseagoldenflow.github.io/bailian-workbench/)
+
+> GitHub Pages 托管前端静态页面；生成能力仍需连接已部署的后端服务。
+
 ## 这版支持什么
 
 - 图片：Qwen Image 3.0/2.0、Wan 2.7/2.6、Z-Image、Wanx 等生成与编辑模型。
